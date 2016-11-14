@@ -10,12 +10,14 @@ using AlttpRandomizer.Net;
 using AlttpRandomizer.Properties;
 using AlttpRandomizer.Random;
 using AlttpRandomizer.Rom;
+using System.ComponentModel;
 
 namespace AlttpRandomizer
 {
     public partial class MainForm : Form
     {
 		private Thread checkUpdateThread;
+        private BackgroundWorker backgroundWorker;
 
 		public MainForm()
         {
@@ -48,7 +50,7 @@ namespace AlttpRandomizer
 		        return;
 		    }
 
-            CreateRom(difficulty);
+            CreateRom(difficulty, false);
 
 		    Settings.Default.SramTrace = sramTrace.Checked;
 		    Settings.Default.CreateSpoilerLog = createSpoilerLog.Checked;
@@ -56,7 +58,7 @@ namespace AlttpRandomizer
 			Settings.Default.Save();
 		}
 
-        private void CreateRom(RandomizerDifficulty difficulty)
+        private void CreateRom(RandomizerDifficulty difficulty, bool spoilerOnly)
         {
             int parsedSeed;
 
@@ -70,59 +72,63 @@ namespace AlttpRandomizer
                 var romPlms = RomLocationsFactory.GetRomLocations(difficulty);
                 RandomizerLog log = null;
 
-                if (createSpoilerLog.Checked)
+                if (spoilerOnly || createSpoilerLog.Checked)
                 {
                     log = new RandomizerLog(string.Format(romPlms.SeedFileString, parsedSeed));
                 }
 
                 seed.Text = string.Format(romPlms.SeedFileString, parsedSeed);
 
-                try
+                var outputString = new StringBuilder();
+                backgroundWorker = new BackgroundWorker();
+                backgroundWorker.WorkerReportsProgress = true;
+                backgroundWorker.WorkerSupportsCancellation = true;
+                backgroundWorker.DoWork += (sender, e) =>
                 {
                     var randomizer = new Randomizer(parsedSeed, romPlms, log);
-                    randomizer.CreateRom(new RandomizerOptions { Filename = filename.Text, SramTrace = sramTrace.Checked });
+                    var options = new RandomizerOptions { Filename = filename.Text, SramTrace = sramTrace.Checked, SpoilerOnly = spoilerOnly };
+                    outputString.Append(randomizer.CreateRom(options, backgroundWorker));
 
-                    var outputString = new StringBuilder();
-
-                    outputString.AppendFormat("Done!{0}{0}{0}Seed: ", Environment.NewLine);
-                    outputString.AppendFormat(romPlms.SeedFileString, parsedSeed);
-                    outputString.AppendFormat(" ({0} Difficulty){1}{1}", romPlms.DifficultyName, Environment.NewLine);
-
-                    WriteOutput(outputString.ToString());
-                }
-                catch (RandomizationException ex)
+                    if (!spoilerOnly)
+                    {
+                        outputString.AppendFormat("Done!{0}{0}{0}Seed: ", Environment.NewLine);
+                        outputString.AppendFormat(romPlms.SeedFileString, parsedSeed);
+                        outputString.AppendFormat(" ({0} Difficulty){1}{1}", romPlms.DifficultyName, Environment.NewLine);
+                    }
+                };
+                backgroundWorker.ProgressChanged += (sender, e) =>
                 {
-                    WriteOutput(ex.ToString());
-                }
+                    progressBar.Value = e.ProgressPercentage;
+                };
+                backgroundWorker.RunWorkerCompleted += (sender, e) =>
+                {
+                    if (e.Error is OperationCanceledException)
+                    {
+                        // User cancelled
+                        WriteOutput("Cancelled");
+                    }
+                    else if (e.Error != null)
+                    {
+                        // Probably a Bug in this app
+                        WriteOutput(e.Error.ToString());
+                    }
+                    else
+                    {
+                        // Normal completion
+                        WriteOutput(outputString.ToString());
+                    }
+                    SetBackgroundWorkInProgress(false);
+                };
+                backgroundWorker.RunWorkerAsync();
+                SetBackgroundWorkInProgress(true);
             }
         }
 
-        private void CreateSpoilerLog(RandomizerDifficulty difficulty)
+        private void SetBackgroundWorkInProgress(bool isInProgress)
         {
-            int parsedSeed;
-
-            if (!int.TryParse(seed.Text, out parsedSeed))
-            {
-                MessageBox.Show("Seed must be numeric or blank.", "Seed Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                WriteOutput("Seed must be numeric or blank.");
-            }
-            else
-            {
-                var romPlms = RomLocationsFactory.GetRomLocations(difficulty);
-                RandomizerLog log = new RandomizerLog(string.Format(romPlms.SeedFileString, parsedSeed));
-
-                seed.Text = string.Format(romPlms.SeedFileString, parsedSeed);
-
-                try
-                {
-                    var randomizer = new Randomizer(parsedSeed, romPlms, log);
-                    WriteOutput(randomizer.CreateRom(new RandomizerOptions { SpoilerOnly = true }));
-                }
-                catch (RandomizationException ex)
-                {
-                    WriteOutput(ex.ToString());
-                }
-            }
+            progressBar.Visible = isInProgress;
+            cancel.Enabled = isInProgress;
+            create.Enabled = !isInProgress;
         }
 
         private RandomizerDifficulty GetRandomizerDifficulty()
@@ -244,7 +250,12 @@ namespace AlttpRandomizer
             ClearOutput();
 
             var difficulty = GetRandomizerDifficulty();
-            CreateSpoilerLog(difficulty);
+            CreateRom(difficulty, true);
+        }
+
+        private void cancel_Click(object sender, EventArgs e)
+        {
+            backgroundWorker.CancelAsync();
         }
     }
 }

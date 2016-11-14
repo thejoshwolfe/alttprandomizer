@@ -6,6 +6,7 @@ using AlttpRandomizer.IO;
 using AlttpRandomizer.Net;
 using AlttpRandomizer.Properties;
 using AlttpRandomizer.Rom;
+using System.ComponentModel;
 
 namespace AlttpRandomizer.Random
 {
@@ -46,7 +47,7 @@ namespace AlttpRandomizer.Random
 			this.log = log;
 		}
 
-		public string CreateRom(RandomizerOptions options)
+		public string CreateRom(RandomizerOptions options, BackgroundWorker backgroundWorker)
 		{
 		    try
 		    {
@@ -55,9 +56,12 @@ namespace AlttpRandomizer.Random
 		            Directory.CreateDirectory(options.Filename.Substring(0, options.Filename.LastIndexOf('\\')));
 		        }
 
+                if (backgroundWorker.CancellationPending) throw new OperationCanceledException();
                 GenerateItemList();
                 GenerateDungeonItems();
-                GenerateItemPositions();
+
+                if (backgroundWorker.CancellationPending) throw new OperationCanceledException();
+                GenerateItemPositions(backgroundWorker);
 
                 if (RandomizerVersion.Debug)
                 {
@@ -69,12 +73,15 @@ namespace AlttpRandomizer.Random
 		            return log?.GetLogOutput();
 		        }
 
+                if (backgroundWorker.CancellationPending) throw new OperationCanceledException();
                 WriteRom(options.Filename, options.SramTrace);
 
-		        return "";
+                return "";
 		    }
             catch (Exception ex)
 		    {
+                if (ex is OperationCanceledException) throw;
+
                 var newEx = new RandomizationException(string.Format("Error creating seed: {0}.", string.Format(romLocations.SeedFileString, seed)), ex);
 
 		        throw newEx;
@@ -508,11 +515,18 @@ namespace AlttpRandomizer.Random
 			return retVal;
 		}
 
-		private void GenerateItemPositions()
+		private void GenerateItemPositions(BackgroundWorker backgroundWorker)
 		{
-			do
-			{
-				var currentLocations = romLocations.GetAvailableLocations(haveItems);
+            int totalItemCount = itemPool.Count;
+            do
+            {
+                if (backgroundWorker.CancellationPending) throw new OperationCanceledException();
+                // This progress calculation assumes each iteration of this loop takes
+                // time proportional to the number of items left in the pool.
+                float progress = 1 - (itemPool.Count * itemPool.Count) / (float)(totalItemCount * totalItemCount);
+                backgroundWorker.ReportProgress((int)(100 * progress));
+
+                var currentLocations = romLocations.GetAvailableLocations(haveItems);
 				var candidateItemList = new List<ItemType>();
 
 				// Generate candidate item list

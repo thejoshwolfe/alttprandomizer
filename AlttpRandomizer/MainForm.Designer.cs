@@ -41,6 +41,8 @@
             this.randomSpoiler = new System.Windows.Forms.Button();
             this.browse = new System.Windows.Forms.Button();
             this.sramTrace = new System.Windows.Forms.CheckBox();
+            this.cancel = new System.Windows.Forms.Button();
+            this.progressBar = new System.Windows.Forms.ProgressBar();
             this.SuspendLayout();
             // 
             // createSpoilerLog
@@ -94,7 +96,7 @@
             this.output.Name = "output";
             this.output.ReadOnly = true;
             this.output.ScrollBars = System.Windows.Forms.ScrollBars.Both;
-            this.output.Size = new System.Drawing.Size(469, 184);
+            this.output.Size = new System.Drawing.Size(469, 155);
             this.output.TabIndex = 22;
             this.output.WordWrap = false;
             // 
@@ -142,8 +144,8 @@
             // 
             // report
             // 
-            this.report.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
-            this.report.Location = new System.Drawing.Point(387, 301);
+            this.report.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
+            this.report.Location = new System.Drawing.Point(116, 301);
             this.report.Name = "report";
             this.report.Size = new System.Drawing.Size(92, 23);
             this.report.TabIndex = 33;
@@ -184,11 +186,33 @@
             this.sramTrace.Text = "SRAM Trace";
             this.sramTrace.UseVisualStyleBackColor = true;
             // 
+            // cancel
+            // 
+            this.cancel.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
+            this.cancel.Enabled = false;
+            this.cancel.Location = new System.Drawing.Point(404, 301);
+            this.cancel.Name = "cancel";
+            this.cancel.Size = new System.Drawing.Size(75, 23);
+            this.cancel.TabIndex = 36;
+            this.cancel.Text = "Cancel";
+            this.cancel.UseVisualStyleBackColor = true;
+            this.cancel.Click += new System.EventHandler(this.cancel_Click);
+            // 
+            // progressBar
+            // 
+            this.progressBar.Location = new System.Drawing.Point(10, 272);
+            this.progressBar.Name = "progressBar";
+            this.progressBar.Size = new System.Drawing.Size(469, 23);
+            this.progressBar.TabIndex = 37;
+            this.progressBar.Visible = false;
+            // 
             // MainForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(491, 336);
+            this.Controls.Add(this.progressBar);
+            this.Controls.Add(this.cancel);
             this.Controls.Add(this.sramTrace);
             this.Controls.Add(this.randomSpoiler);
             this.Controls.Add(this.report);
@@ -225,6 +249,8 @@
 		private System.Windows.Forms.Button report;
         private System.Windows.Forms.Button randomSpoiler;
         private System.Windows.Forms.CheckBox sramTrace;
+        private System.Windows.Forms.Button cancel;
+        private System.Windows.Forms.ProgressBar progressBar;
     }
 }
 
